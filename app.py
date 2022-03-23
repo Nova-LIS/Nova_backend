@@ -8,17 +8,18 @@ from flask_cors import CORS
 db=SQLAlchemy()
 # migrate = Migrate()
 # ma = Marshmallow()
-cors = CORS()
+#cors = CORS()
 app = Flask(__name__)
 app.config['SECRET_KEY']='0099734a1b530d8a8de2f3b7d091b60c'
-app.config['SQLALCHEMY_DATABASE_URI']='sqlite:///site.db'
+app.config['SQLALCHEMY_DATABASE_URI']='sqlite:///site2.db'
 db.init_app(app)
+CORS(app)
 
 class User(db.Model):
     name = db.Column(db.String(50),nullable=False,unique=True)
     roll = db.Column(db.String(10), nullable=False, unique=True)
     email=db.Column(db.String(100),unique=True,nullable=False)
-    phone=db.Column(db.String(10),unique=True,nullable=False)
+    phone=db.Column(db.Integer,unique=True,nullable=False)
     username=db.Column(db.String(20),primary_key=True)
     password=db.Column(db.String(30),nullable=False)
 
@@ -32,6 +33,14 @@ class User(db.Model):
         self.phone = phone
         self.username = username
         self.password=password
+
+    def serialize(self):
+        return {"name": self.name,
+                "roll": self.roll,
+                "email": self.email,
+                "phone":self.phone,
+                "username":self.username,
+                "password":self.password}
 
 
 class Book(db.Model):
@@ -60,21 +69,30 @@ def home():
 
 
 @app.route('/about',methods=['GET','POST'])
-# @app.route('/hello',methods=['GET','POST'])
 def about():
     return render_template('./about.html',title='About')
 
 
 @app.route('/register',methods=['GET','POST'])
 def register():
-    print("Reached")
-    input_json = request.get_json(force=True)
-    dictToReturn = {'name':input_json['name'],'roll': input_json['roll'],'email': input_json['email'],'phone': input_json['phone'],'username': input_json['userName'],'password': input_json['password']}
 
-    record = User(dictToReturn['name'],dictToReturn['roll'],dictToReturn['email'],dictToReturn['phone'],dictToReturn['username'],dictToReturn['password'])
+    print("Entered")
+
+    #input_json = request.get_json(force=True)
+    #print(input_json)
+    
+    name=request.json['name']
+    roll=request.json['roll']
+    email=request.json['email']
+    phone=int(request.json['phone'])
+    username=request.json['userName']
+    password=request.json['password']
+    print(name)
+    record = User(name,roll,email,phone,username,password)
     db.session.add(record)
     db.session.commit()
-    return jsonify(dictToReturn)
+    #return render_template('./about.html', title='Register')
+    return jsonify(record.serialize())
     # return render_template('./register.html', title='About')
 
 # @app.route('/hello',methods=['GET','POST'])
@@ -125,7 +143,6 @@ if __name__=='__main__':
     app.run(debug=True)
     # migrate.init_app(app, db)
     # ma.init_app(app)
-    cors.init_app(app)
 
 
 
