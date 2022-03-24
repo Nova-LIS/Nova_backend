@@ -60,7 +60,7 @@ class Book(db.Model):
     publisher=db.Column(db.String())
     page_count=db.Column(db.Integer)
     genres=db.Column(db.String(),nullable=False)
-    ISBN=db.Column(db.String(),nullable=False)
+    isbn=db.Column(db.String(),nullable=False)
     published_date=db.Column(db.String(),nullable=False)
     no_of_copies=db.Column(db.Integer,nullable=False)
     racknumber=db.Column(db.Integer,nullable=False)
@@ -77,7 +77,7 @@ class Book(db.Model):
         self.publisher=publisher
         self.page_count=page_count
         self.genres=genres
-        self.ISBN=isbn
+        self.isbn=isbn
         self.published_date=published_date
         self.no_of_copies=no_of_copies
         self.racknumber=racknumber
@@ -175,7 +175,7 @@ def browse():
             "publisher":book.publisher,
             "page_count":book.page_count,
             "genres":book.genres,
-            "isbn":book.ISBN,
+            "isbn":book.isbn,
             "published_date":book.published_date,
             "no_of_copies":book.no_of_copies,
             "racknumber":book.racknumber,
