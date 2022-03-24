@@ -1,4 +1,5 @@
-from flask import current_app,request
+# from flask import current_app,request
+from __main__ import app
 from app import create_app,db
 from flask import current_app,render_template,flash,url_for,redirect,request,jsonify
 from models import Book,User
@@ -8,24 +9,55 @@ app=create_app()
 @app.route('/',methods=['GET','POST'])
 @app.route('/home',methods=['GET','POST'])
 def home():
-    return render_template('./templates/home.html',title='Home')
+    return render_template('./home.html',title='Home')
 
 
 @app.route('/about',methods=['GET','POST'])
 def about():
-    return render_template('./templates/about.html',title='About')
+    return render_template('./about.html',title='About')
 
 
-@app.route('/register',methods=['GET','POST'],strict_slashes=False)
+@app.route('/register',methods=['GET','POST'])
 def register():
-    print("reached")
-    input_json = request.get_json(force=True)
-    dictToReturn = {'name':input_json['name'],'roll': input_json['roll'],'email': input_json['email'],'phone': input_json['phone'],'username': input_json['userName'],'password': input_json['password']}
 
-    record = User(dictToReturn['name'],dictToReturn['roll'],dictToReturn['email'],dictToReturn['phone'],dictToReturn['username'],dictToReturn['password'])
+    print("Entered")
+
+    #input_json = request.get_json(force=True)
+    #print(input_json)
+    
+    name=request.json['name']
+    roll=request.json['roll']
+    email=request.json['email']
+    phone=int(request.json['phone'])
+    username=request.json['userName']
+    password=request.json['password']
+    print(name)
+    record = User(name,roll,email,phone,username,password)
     db.session.add(record)
     db.session.commit()
-    return jsonify(dictToReturn)
+    #return render_template('./about.html', title='Register')
+    return jsonify(record.serialize())
+# @app.route('/',methods=['GET','POST'])
+# @app.route('/home',methods=['GET','POST'])
+# def home():
+#     return render_template('./templates/home.html',title='Home')
+
+
+# @app.route('/about',methods=['GET','POST'])
+# def about():
+#     return render_template('./templates/about.html',title='About')
+
+
+# @app.route('/register',methods=['GET','POST'],strict_slashes=False)
+# def register():
+#     print("reached")
+#     input_json = request.get_json(force=True)
+#     dictToReturn = {'name':input_json['name'],'roll': input_json['roll'],'email': input_json['email'],'phone': input_json['phone'],'username': input_json['userName'],'password': input_json['password']}
+
+#     record = User(dictToReturn['name'],dictToReturn['roll'],dictToReturn['email'],dictToReturn['phone'],dictToReturn['username'],dictToReturn['password'])
+#     db.session.add(record)
+#     db.session.commit()
+#     return jsonify(dictToReturn)
     # #return 'This is my first API call!'
     #     #print(dictToReturn['text'])
     # #print(dictToReturn['id'])

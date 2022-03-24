@@ -1,9 +1,11 @@
-from flask import Flask,render_template,flash,url_for,redirect,request,jsonify
+from flask import Flask,render_template,flash,url_for,redirect,request,jsonify,session
 from flask_sqlalchemy import SQLAlchemy
 # from flask_migrate import Migrate
 # from flask_marshmallow import Marshmallow
 # from forms import RegistrationForm,LoginForm
 from flask_cors import CORS
+from pyrsistent import b
+from sqlalchemy.sql import text
 
 db=SQLAlchemy()
 # migrate = Migrate()
@@ -14,6 +16,7 @@ app.config['SECRET_KEY']='0099734a1b530d8a8de2f3b7d091b60c'
 app.config['SQLALCHEMY_DATABASE_URI']='sqlite:///site2.db'
 db.init_app(app)
 CORS(app)
+
 
 class User(db.Model):
     name = db.Column(db.String(50),nullable=False,unique=True)
@@ -95,6 +98,45 @@ def register():
     return jsonify(record.serialize())
     # return render_template('./register.html', title='About')
 
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+        # Create variables for easy access
+    logindetails = request.get_json(force=True)
+    username=logindetails['userName']
+    password=logindetails['password']
+    sql="SELECT * FROM user WHERE username='%s' AND password='%s'"%(username,password)
+
+    account=db.session.execute(sql)
+    account_dict=account.mappings().all()
+        # # If account exists in accounts table in out database
+    if len(account_dict)>0:
+    #     #     # Create session data, we can access this data in other routes
+        session['loggedin'] = True
+        session['name'] = account_dict[0]['name']
+        session['username'] = account_dict[0]['username']
+        print("name= "+account_dict[0]['name'])
+    #     #     # Redirect to home page
+        (f'{username},Logged in successfully!', 'successflash')
+        print(username+' Logged in successfully!')
+    else:
+    #     #     # Account doesnt exist or username/password incorrect
+        print("Username/password incorrect!")
+        (f'Username/password incorrect!', 'failflash')
+    # Show the login form with message (if any)
+    return render_template('home.html',title='Home')
+    
+    # password = request.json['password']
+    # print(username)
+    # print(password)
+        # Check if account exists using MySQL
+    
+    # cursor = db.connection.cursor(db.cursors.DictCursor)
+    # cursor.execute('SELECT * FROM accounts WHERE username = %s AND password = %s', (username, password,))
+    #     # # Fetch one record and return result
+    # account = cursor.fetchone()
+
+
+
 # @app.route('/hello',methods=['GET','POST'])
 # def hello():
 #     print("reached")
@@ -102,7 +144,7 @@ def register():
 
     # form = RegistrationForm()
     # if form.validate_on_submit():
-    #     flash(f'Account created for {form.username.data}!', 'success')
+    #     (f'Account created for {form.username.data}!', 'successflash')
     #     return redirect(url_for('home'))
 
     # input_json = request.get_json(force=True)
