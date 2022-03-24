@@ -1,4 +1,10 @@
-from flask import Flask,render_template,flash,url_for,redirect,request,jsonify
+from ast import JoinedStr, Return
+from cmath import log
+from distutils.log import error
+from enum import unique
+from genericpath import exists
+from lib2to3.pytree import Base
+from flask import Flask,render_template,flash,url_for,redirect,request,jsonify, make_response
 from flask_sqlalchemy import SQLAlchemy
 # from flask_migrate import Migrate
 # from flask_marshmallow import Marshmallow
@@ -76,8 +82,6 @@ def about():
 @app.route('/register',methods=['GET','POST'])
 def register():
 
-    print("Entered")
-
     #input_json = request.get_json(force=True)
     #print(input_json)
     
@@ -87,56 +91,63 @@ def register():
     phone=int(request.json['phone'])
     username=request.json['userName']
     password=request.json['password']
-    print(name)
     record = User(name,roll,email,phone,username,password)
-    db.session.add(record)
-    db.session.commit()
-    #return render_template('./about.html', title='Register')
-    return jsonify(record.serialize())
-    # return render_template('./register.html', title='About')
 
-# @app.route('/hello',methods=['GET','POST'])
-# def hello():
-#     print("reached")
-#     return render_template('./about.html', title='About')
+    roll_exists = User.query.filter_by(roll=roll.strip()).first()
+    email_exists = User.query.filter_by(email=email.strip()).first()
+    phone_exists = User.query.filter_by(phone=phone.strip()).first()
+    username_exists = User.query.filter_by(username=username.strip()).first()
 
-    # form = RegistrationForm()
-    # if form.validate_on_submit():
-    #     flash(f'Account created for {form.username.data}!', 'success')
-    #     return redirect(url_for('home'))
+    exists = roll_exists or email_exists or phone_exists or username_exists
 
-    # input_json = request.get_json(force=True)
-    # dictToReturn = {'name':input_json['name'],'roll': input_json['roll'],'email': input_json['email'],'phone': input_json['phone'],'username': input_json['userName'],'password': input_json['password']}
-    #
-    # record = User(dictToReturn['name'],dictToReturn['roll'],dictToReturn['email'],dictToReturn['phone'],dictToReturn['username'],dictToReturn['password'])
-    # db.session.add(record)
-    # db.session.commit()
-    # return jsonify(dictToReturn)
-    # #return 'This is my first API call!'
-    #     #print(dictToReturn['text'])
-    # #print(dictToReturn['id'])
-    # #record = User("1", form.name.data, form.roll.data, form.email.data, form.username.data, "reg.jpg", 50,
-    #               #form.password.data)
-    # #     db.session.add(record)
-    # #     db.session.commit()
-    # form=RegistrationForm()
-    # if form.validate_on_submit():
-    #     print(form.password.data)
-    #     flash(f'Account created for {form.username.data} !','success')
-    #     record = User("1",form.name.data,form.roll.data,form.email.data,form.username.data,"reg.jpg",50,form.password.data)
-    #     db.session.add(record)
-    #     db.session.commit()
-    #     return redirect(url_for('home'))
-    # return render_template('register.html',title='Register',form=form)
+    if exists:
+        data = {
+            "accepted": False,
+            "rollExists": True if roll_exists else False,
+            "emailExists": True if email_exists else False,
+            "phoneExists": True if phone_exists else False,
+            "usernameExists": True if username_exists else False,               
+        }
+        return jsonify(data)
+
+    else:
+        db.session.add(record)
+        db.session.commit()
+        data = {
+            "accepted": True,
+            "rollExists": False,
+            "emailExists": False,
+            "phoneExists": False,
+            "usernameExists": False,    
+        }
+        return jsonify(data)
 
 
-# @app.route('/login',methods=['GET','POST'])
-# def login():
-#     form=LoginForm()
-#     if form.validate_on_submit():
-#         flash(f'Successfully Logged In!','success')
-#         return redirect(url_for('home'))
-#     return render_template('login.html',title='Login',form=form)
+@app.route('/login',methods=['GET','POST'])
+def login():
+    username = request.json["userName"]
+    password = request.json["password"]
+
+    user = User.query.filter_by(username=username.strip()).first()
+
+
+    if user:
+        if user.password == password:
+            data = {
+                "isRegistered": True,     
+                "isPasswordCorrect": True
+            }
+        else:
+            data = {
+                "isRegistered": True,          
+                "isPasswordCorrect": False
+            }
+        return jsonify(data)
+    else:
+        data = {
+            "isRegistered": False
+        }
+        return jsonify(data)
 
 
 if __name__=='__main__':
