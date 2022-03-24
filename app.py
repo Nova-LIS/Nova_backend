@@ -21,8 +21,8 @@ app = Flask(__name__)
 app.config['SECRET_KEY']='0099734a1b530d8a8de2f3b7d091b60c'
 app.config['SQLALCHEMY_DATABASE_URI']='sqlite:///site2.db'
 db.init_app(app)
-CORS(app)
 
+CORS(app)
 
 class User(db.Model):
     name = db.Column(db.String(50),nullable=False,unique=True)
@@ -81,6 +81,23 @@ class Book(db.Model):
         self.published_date=published_date
         self.no_of_copies=no_of_copies
         self.racknumber=racknumber
+
+class issueRecord(db.Model):
+    id=db.Column(db.Integer,primary_key=True)
+    bookissued=db.Column(db.Integer,db.ForeignKey('book.booknumber'),nullable=False)
+    issuedto=db.Column(db.String(),db.ForeignKey('user.username'),nullable=False)
+    issuedate=db.Column(db.String(),nullable=False)
+    expectedreturn=db.Column(db.String(),nullable=False)
+    isOverdue=db.Column(db.Boolean,default=False,nullable=False)
+    overdueDuration=db.Column(db.Integer,default=0,nullable=False)
+
+    def __init__(self,bookissued,issuedto,issuedate,expectedreturn,isOverdue,overdueDuration):
+        self.bookissued=bookissued
+        self.issuedto=issuedto
+        self.issuedate=issuedate
+        self.expectedreturn=expectedreturn
+        self.isOverdue=isOverdue
+        self.overdueDuration=overdueDuration
 
 
 @app.route('/',methods=['GET','POST'])
