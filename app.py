@@ -10,6 +10,8 @@ from flask_sqlalchemy import SQLAlchemy
 # from flask_marshmallow import Marshmallow
 # from forms import RegistrationForm,LoginForm
 from flask_cors import CORS
+from pyrsistent import b
+from sqlalchemy.sql import text
 
 db=SQLAlchemy()
 # migrate = Migrate()
@@ -20,6 +22,7 @@ app.config['SECRET_KEY']='0099734a1b530d8a8de2f3b7d091b60c'
 app.config['SQLALCHEMY_DATABASE_URI']='sqlite:///site2.db'
 db.init_app(app)
 CORS(app)
+
 
 class User(db.Model):
     name = db.Column(db.String(50),nullable=False,unique=True)

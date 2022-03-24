@@ -1,10 +1,10 @@
-from app import db,ma
+from app import db
 
 class User(db.Model):
     name = db.Column(db.String(50),nullable=False,unique=True)
     roll = db.Column(db.String(10), nullable=False, unique=True)
     email=db.Column(db.String(100),unique=True,nullable=False)
-    phone=db.Column(db.String(10),unique=True,nullable=False)
+    phone=db.Column(db.Integer,unique=True,nullable=False)
     username=db.Column(db.String(20),primary_key=True)
     password=db.Column(db.String(30),nullable=False)
 
@@ -18,6 +18,14 @@ class User(db.Model):
         self.phone = phone
         self.username = username
         self.password=password
+
+    def serialize(self):
+        return {"name": self.name,
+                "roll": self.roll,
+                "email": self.email,
+                "phone":self.phone,
+                "username":self.username,
+                "password":self.password}
 
 
 class Book(db.Model):
@@ -37,12 +45,3 @@ class Book(db.Model):
         self.author=author
         self.copies=copies
         self.last_issued=last_issued
-
-# class ArticlesSchema(ma.Schema):
-#     class Meta:
-#         # Fields to expose
-#         fields = ("id","username", "roll", "name")
-#
-#
-# user_schema = ArticlesSchema()
-# users_schema = ArticlesSchema(many=True)
