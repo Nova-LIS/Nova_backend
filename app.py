@@ -41,22 +41,34 @@ class User(db.Model):
 
 
 class Book(db.Model):
-    name=db.Column(db.String(50),nullable=False,unique=True)
-    isbn=db.Column(db.String(13),primary_key=True)
-    author=db.Column(db.String(50),nullable=False)
-    copies=db.Column(db.Integer,default=1)
-    last_issued=db.Column(db.Integer,default=0)
+    booknumber=db.Column(db.Integer,primary_key=True)
+    title=db.Column(db.String(100),nullable=False,unique=True)
+    author=db.Column(db.String(80),nullable=False)
+    description=db.Column(db.String())
+    publisher=db.Column(db.String())
+    page_count=db.Column(db.Integer)
+    genres=db.Column(db.String(),nullable=False)
+    isbn=db.Column(db.String(),nullable=False)
+    published_date=db.Column(db.String(),nullable=False)
+    no_of_copies=db.Column(db.Integer,nullable=False)
+    racknumber=db.Column(db.Integer,nullable=False)
 
-    def __repr__(self):
-        return f"User('{self.name}','{self.isbn}','{self.author}','{self.copies}'," \
-               f"'{self.last_issued}')"
+    # def __repr__(self):
+    #     return f"User('{self.bo}','{self.isbn}','{self.author}','{self.copies}'," \
+    #            f"'{self.last_issued}')"
 
-    def __init__(self,name, isbn, author,copies,last_issued):
-        self.name = name
-        self.isbn=isbn
+    def __init__(self,booknumber,title,author,description,publisher,page_count,genres,isbn,published_date,no_of_copies,racknumber):
+        self.booknumber=booknumber
+        self.title = title
         self.author=author
-        self.copies=copies
-        self.last_issued=last_issued
+        self.description=description
+        self.publisher=publisher
+        self.page_count=page_count
+        self.genres=genres
+        self.isbn=isbn
+        self.published_date=published_date
+        self.no_of_copies=no_of_copies
+        self.racknumber=racknumber
 
 
 @app.route('/about',methods=['GET','POST'])
@@ -108,7 +120,6 @@ def register():
 def login():
     username = request.json["userName"]
     password = request.json["password"]
-
     user = User.query.filter_by(username=username.strip()).first()
 
 
@@ -136,15 +147,56 @@ def login():
         }
         return jsonify(data)
 
+@app.route('/browse',methods=['GET','POST'])
+def browse():
+    bookname=request.json["bookname"]
+    bookdata=[]
+    flag=0
+    for book in Book.query.filter(Book.title.contains(bookname)):
+        flag=1
+        bookdata.append({
+            "foundBook":True,
+            "title":book.title,
+            "author":book.author,
+            "description":book.description,
+            "publisher":book.publisher,
+            "page_count":book.page_count,
+            "genres":book.genres,
+            "isbn":book.isbn,
+            "published_date":book.published_date,
+            "no_of_copies":book.no_of_copies,
+            "racknumber":book.racknumber,
+        })
+    if flag==0:
+        data={
+            "foundBook":False
+        }
+        return jsonify(data)
+    else:
+        return jsonify(bookdata)
+    # if book:
+    #     if user.password == password:
+    #         data = {
+    #             "isRegistered": True,     
+    #             "isPasswordCorrect": True
+    #         }
+    #     else:
+    #         data = {
+    #             "isRegistered": True,          
+    #             "isPasswordCorrect": False
+    #         }
+    #     return jsonify(data)
+    # else:
+    #     data = {
+    #         "isRegistered": False
+    #     }
+    #     return jsonify(data)
 
 
 
 
 if __name__=='__main__':
     app.run(debug=True)
-    # migrate.init_app(app, db)
-    # ma.init_app(app)
-
 
 
 
