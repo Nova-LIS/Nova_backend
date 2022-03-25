@@ -170,16 +170,16 @@ def login():
 @app.route('/browse',methods=['GET','POST'])
 def browse():
     bookname=request.json["bookname"]
-    bookdata=[]
+    books=[]
     flag=0
     for book in Book.query.filter(Book.title.contains(bookname)):
         flag=1
-        bookdata.append({
-            "foundBook":True,
+        books.append({
             "bookid":book.bookid,
             "booknumber":book.booknumber,
             "title":book.title,
             "author":book.author,
+            "isbn":book.isbn,
             "published_date":book.published_date,
             "image_url":book.image_url,
             "small_image_url":book.small_image_url,
@@ -189,11 +189,14 @@ def browse():
     if flag==0:
         data={
             "foundBook":False
-        }
+        } 
         return jsonify(data)
     else:
-        return jsonify(bookdata)
-
+        data={
+            "foundBook":True,
+            "books": books
+        }
+        return jsonify(data)
 
 @app.route('/issue',methods=['GET','POST'])
 def issuebook():
