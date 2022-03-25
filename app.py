@@ -53,15 +53,18 @@ class User(db.Model):
 
 
 class Book(db.Model):
-    booknumber=db.Column(db.Integer,primary_key=True)
-    title=db.Column(db.String(100),nullable=False,unique=True)
-    author=db.Column(db.String(80),nullable=False)
-    description=db.Column(db.String())
-    publisher=db.Column(db.String())
-    page_count=db.Column(db.Integer)
-    genres=db.Column(db.String(),nullable=False)
+    booknumber=db.Column(db.Integer)
+    bookid=db.Column(db.Integer,primary_key=True)
     isbn=db.Column(db.String(),nullable=False)
+    author=db.Column(db.String(80),nullable=False)
     published_date=db.Column(db.String(),nullable=False)
+    title=db.Column(db.String(100),nullable=False,unique=True)
+    # description=db.Column(db.String())
+    # publisher=db.Column(db.String())
+    # page_count=db.Column(db.Integer)
+    # genres=db.Column(db.String(),nullable=False)
+    image_url=db.Column(db.String(),nullable=False)
+    small_image_url=db.Column(db.String(),nullable=False)
     no_of_copies=db.Column(db.Integer,nullable=False)
     racknumber=db.Column(db.Integer,nullable=False)
 
@@ -88,7 +91,7 @@ class issueRecord(db.Model):
     issuedto=db.Column(db.String(),db.ForeignKey('user.username'),nullable=False)
     issuedate=db.Column(db.String(),nullable=False)
     expectedreturn=db.Column(db.String(),nullable=False)
-    isOverdue=db.Column(db.Boolean,default=False,nullable=False)
+    isOverdue=db.Column(db.Integer,default=0,nullable=False)
     overdueDuration=db.Column(db.Integer,default=0,nullable=False)
 
     def __init__(self,bookissued,issuedto,issuedate,expectedreturn,isOverdue,overdueDuration):
@@ -204,6 +207,13 @@ def browse():
         return jsonify(data)
     else:
         return jsonify(bookdata)
+
+
+@app.route('/issue',methods=['GET','POST'])
+def issuebook():
+    booknumber=request.json["booknumber"]
+    bookdata=[]
+    
     # if book:
     #     if user.password == password:
     #         data = {
