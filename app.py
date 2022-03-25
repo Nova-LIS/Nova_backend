@@ -1,5 +1,6 @@
 from flask import Flask,render_template,request,jsonify
 from flask_sqlalchemy import SQLAlchemy
+from datetime import datetime,timedelta
 
 from flask_cors import CORS
 
@@ -81,14 +82,16 @@ class issueRecord(db.Model):
     expectedreturn=db.Column(db.String(),nullable=False)
     isOverdue=db.Column(db.Integer,default=0,nullable=False)
     overdueDuration=db.Column(db.Integer,default=0,nullable=False)
+    returned=db.Column(db.Integer,default=0,nullable=False)
 
-    def __init__(self,bookissued,issuedto,issuedate,expectedreturn,isOverdue,overdueDuration):
+    def __init__(self,bookissued,issuedto,issuedate,expectedreturn,isOverdue,overdueDuration,returned):
         self.bookissued=bookissued
         self.issuedto=issuedto
         self.issuedate=issuedate
         self.expectedreturn=expectedreturn
         self.isOverdue=isOverdue
         self.overdueDuration=overdueDuration
+        self.returned=returned
 
 
 @app.route('/about',methods=['GET','POST'])
@@ -104,7 +107,9 @@ def register():
     phone=int(request.json['phone'].strip())
     username=request.json['userName']
     password=request.json['password']
-    record = User(name,roll,email,phone,username,password)
+    designation=request.json['designation']
+    print(designation)
+    record = User(name,roll,email,phone,username,password,designation)
 
     roll_exists = User.query.filter_by(roll=roll.strip()).first()
     email_exists = User.query.filter_by(email=email.strip()).first()
@@ -164,16 +169,16 @@ def login():
 @app.route('/browse',methods=['GET','POST'])
 def browse():
     bookname=request.json["bookname"]
-    bookdata=[]
+    books=[]
     flag=0
     for book in Book.query.filter(Book.title.contains(bookname)):
         flag=1
-        bookdata.append({
-            "foundBook":True,
+        books.append({
             "bookid":book.bookid,
             "booknumber":book.booknumber,
             "title":book.title,
             "author":book.author,
+            "isbn":book.isbn,
             "published_date":book.published_date,
             "image_url":book.image_url,
             "small_image_url":book.small_image_url,
@@ -186,32 +191,42 @@ def browse():
         }
         return jsonify(data)
     else:
-        return jsonify(bookdata)
+        data={
+            "foundBook":True,
+            "books":books
+        }
+        return jsonify(data)
 
 
 @app.route('/issue',methods=['GET','POST'])
 def issuebook():
-    booknumber=request.json["booknumber"]
-    bookdata=[]
-    
-    # if book:
-    #     if user.password == password:
-    #         data = {
-    #             "isRegistered": True,     
-    #             "isPasswordCorrect": True
-    #         }
-    #     else:
-    #         data = {
-    #             "isRegistered": True,          
-    #             "isPasswordCorrect": False
-    #         }
-    #     return jsonify(data)
-    # else:
-    #     data = {
-    #         "isRegistered": False
-    #     }
-    #     return jsonify(data)
-
+    bookid=request.json["bookid"]
+    username=request.json["username"]
+    issueentry=[]
+    bookissue=Book.query.filter_by(bookid=bookid.strip()).first()
+    userissue=User.query.filter_by(username=username.strip()).first()
+    if (bookissue.no_of_copies>0):
+        date=datetime.now()
+        data = {
+            "isIssued": True,
+        }
+        issueDuration=0
+        if(userissue.designation=="UG Student"):
+            issueDuration=30
+        elif(userissue.designation=="PG Student"):
+            issueDuration=60
+        elif(userissue.designation=="Research Scholar"):
+            issueDuration=90
+        else:
+            issueDuration=180
+        issueEntry=issueRecord(bookissue.bookid,userissue.username,date,date+timedelta(days=issueDuration),0,0,0)
+        db.session.add(issueEntry)
+        db.session.commit()
+        return jsonify(data)
+    data={
+        "isIssued":False,
+    }
+    return jsonify(data)
 
 
 
