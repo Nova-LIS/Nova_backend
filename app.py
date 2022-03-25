@@ -153,6 +153,12 @@ def login():
             data = {
                 "isRegistered": True,     
                 "isPasswordCorrect": True,
+                "name": user.name,
+                "roll": user.roll,
+                "designation": user.designation,
+                "phone": user.phone,
+                "email": user.email,
+                "userName": user.username
             }
         else:
             data = {
