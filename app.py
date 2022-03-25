@@ -151,7 +151,7 @@ def login():
                 "name": user.name,
                 "roll": user.roll,
                 "designation": user.designation,
-                "phone": 19821212,
+                "phone": user.phone,
                 "email": user.email,
                 "userName": user.username
             }
