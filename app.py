@@ -74,7 +74,7 @@ class Book(db.Model):
         no_of_copies=db.Column(db.Integer,nullable=False)
         racknumber=db.Column(db.Integer,nullable=False)
 
-class issueRecord(db.Model):
+class Issuerecord(db.Model):
     id=db.Column(db.Integer,primary_key=True)
     bookissued=db.Column(db.Integer,db.ForeignKey('book.booknumber'),nullable=False)
     issuedto=db.Column(db.String(),db.ForeignKey('user.username'),nullable=False)
@@ -84,7 +84,8 @@ class issueRecord(db.Model):
     overdueDuration=db.Column(db.Integer,default=0,nullable=False)
     returned=db.Column(db.Integer,default=0,nullable=False)
 
-    def __init__(self,bookissued,issuedto,issuedate,expectedreturn,isOverdue,overdueDuration,returned):
+    def __init__(self,id,bookissued,issuedto,issuedate,expectedreturn,isOverdue,overdueDuration,returned):
+        self.id=id
         self.bookissued=bookissued
         self.issuedto=issuedto
         self.issuedate=issuedate
@@ -150,6 +151,28 @@ def login():
 
     if user:
         if user.password == password:
+            booksissued=[]
+            for record in Issuerecord.query.filter_by(issuedto=username):
+                bookid=record.bookissued
+                book=Book.query.filter_by(bookid=bookid).first()
+                booksissued.append(
+                    {
+                        "booknumber":book.booknumber,
+                        "bookid":book.bookid,
+                        "isbn":book.isbn,
+                        "author":book.author,
+                        "published_date":book.published_date,
+                        "title":book.title,
+                        "image_url":book.image_url,
+                        "small_image_url":book.small_image_url,
+                        "no_of_copies":book.no_of_copies,
+                        "racknumber":book.racknumber,
+                        "issuedate":record.issuedate,
+                        "expectedreturn":record.expectedreturn,
+                        "isOverdue":record.isOverdue,
+                        "overdueDuration":record.overdueDuration,
+                        "returned":record.returned
+                    })
             data = {
                 "isRegistered": True,     
                 "isPasswordCorrect": True,
@@ -158,7 +181,8 @@ def login():
                 "designation": user.designation,
                 "phone": user.phone,
                 "email": user.email,
-                "userName": user.username
+                "userName": user.username,
+                "booksissued":booksissued
             }
         else:
             data = {
@@ -209,7 +233,7 @@ def issuebook():
     bookid=request.json["bookid"]
     username=request.json["username"]
     issueentry=[]
-    bookissue=Book.query.filter_by(bookid=bookid.strip()).first()
+    bookissue=Book.query.filter_by(bookid=bookid).first()
     userissue=User.query.filter_by(username=username.strip()).first()
     if (bookissue.no_of_copies>0):
         date=datetime.now()
@@ -225,7 +249,9 @@ def issuebook():
             issueDuration=90
         else:
             issueDuration=180
-        issueEntry=issueRecord(bookissue.bookid,userissue.username,date,date+timedelta(days=issueDuration),0,0,0)
+        issueid=db.session.query(Issuerecord).count()
+        bookissue.no_of_copies-=1
+        issueEntry=Issuerecord(issueid+1,bookissue.bookid,userissue.username,date,date+timedelta(days=issueDuration),0,0,0)
         db.session.add(issueEntry)
         db.session.commit()
         return jsonify(data)
