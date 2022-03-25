@@ -227,6 +227,23 @@ def browse():
         }
         return jsonify(data)
 
+@app.route('/book/<int:number>')
+def getBook(number):
+    book = Book.query.filter_by(booknumber=int(number)).first()
+    serialBook = {
+        "bookid":book.bookid,
+        "booknumber":book.booknumber,
+        "title":book.title,
+        "author":book.author,
+        "isbn":book.isbn,
+        "published_date":book.published_date,
+        "image_url":book.image_url,
+        "small_image_url":book.small_image_url,
+        "no_of_copies":book.no_of_copies,
+        "racknumber":book.racknumber
+    }
+    return jsonify(serialBook)
+
 
 @app.route('/issue',methods=['GET','POST'])
 def issuebook():
