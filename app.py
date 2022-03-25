@@ -23,13 +23,14 @@ class User(db.Model):
     def __repr__(self):
         return f"User('{self.name}','{self.roll}','{self.email}','{self.phone}','{self.username}')"
 
-    def __init__(self,name, roll, email,phone, username,password):
+    def __init__(self,name, roll, email,phone, username,password,designation):
         self.name = name
         self.roll = roll
         self.email = email
         self.phone = phone
         self.username = username
         self.password=password
+        self.designation=designation
 
     def serialize(self):
         return {"name": self.name,
@@ -60,18 +61,17 @@ class Book(db.Model):
     #     return f"User('{self.bo}','{self.isbn}','{self.author}','{self.copies}'," \
     #            f"'{self.last_issued}')"
 
-    def __init__(self,booknumber,title,author,description,publisher,page_count,genres,isbn,published_date,no_of_copies,racknumber):
-        self.booknumber=booknumber
-        self.title = title
-        self.author=author
-        self.description=description
-        self.publisher=publisher
-        self.page_count=page_count
-        self.genres=genres
-        self.isbn=isbn
-        self.published_date=published_date
-        self.no_of_copies=no_of_copies
-        self.racknumber=racknumber
+    def __init__(self,booknumber,bookid,isbn,author,published_date,title,image_url,small_image_url,no_of_copies,racknumber):
+        booknumber=db.Column(db.Integer)
+        bookid=db.Column(db.Integer,primary_key=True)
+        isbn=db.Column(db.String(),nullable=False)
+        author=db.Column(db.String(80),nullable=False)
+        published_date=db.Column(db.String(),nullable=False)
+        title=db.Column(db.String(100),nullable=False,unique=True)
+        image_url=db.Column(db.String(),nullable=False)
+        small_image_url=db.Column(db.String(),nullable=False)
+        no_of_copies=db.Column(db.Integer,nullable=False)
+        racknumber=db.Column(db.Integer,nullable=False)
 
 class issueRecord(db.Model):
     id=db.Column(db.Integer,primary_key=True)
@@ -176,16 +176,15 @@ def browse():
         flag=1
         bookdata.append({
             "foundBook":True,
+            "bookid":book.bookid,
+            "booknumber":book.booknumber,
             "title":book.title,
             "author":book.author,
-            "description":book.description,
-            "publisher":book.publisher,
-            "page_count":book.page_count,
-            "genres":book.genres,
-            "isbn":book.isbn,
             "published_date":book.published_date,
+            "image_url":book.image_url,
+            "small_image_url":book.small_image_url,
             "no_of_copies":book.no_of_copies,
-            "racknumber":book.racknumber,
+            "racknumber":book.racknumber
         })
     if flag==0:
         data={
