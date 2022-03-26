@@ -20,11 +20,12 @@ class User(db.Model):
     phone=db.Column(db.Integer,unique=True,nullable=False)
     username=db.Column(db.String(20),unique=True,primary_key=True)
     password=db.Column(db.String(30),nullable=False)
+    booksissued=db.Column(db.Integer,default=0)
 
     def __repr__(self):
         return f"User('{self.name}','{self.roll}','{self.email}','{self.phone}','{self.username}')"
 
-    def __init__(self,name, roll, email,phone, username,password,designation):
+    def __init__(self,name, roll, email,phone, username,password,designation,booksissued):
         self.name = name
         self.roll = roll
         self.email = email
@@ -32,6 +33,7 @@ class User(db.Model):
         self.username = username
         self.password=password
         self.designation=designation
+        self.booksissued=booksissued
 
     def serialize(self):
         return {"name": self.name,
@@ -76,25 +78,24 @@ class Book(db.Model):
 
 class Issuerecord(db.Model):
     id=db.Column(db.Integer,primary_key=True)
-    bookissued=db.Column(db.Integer,db.ForeignKey('book.booknumber'),nullable=False)
+    bookid=db.Column(db.Integer,db.ForeignKey('book.bookid'),nullable=False)
     issuedto=db.Column(db.String(),db.ForeignKey('user.username'),nullable=False)
     issuedate=db.Column(db.String(),nullable=False)
     expectedreturn=db.Column(db.String(),nullable=False)
     # isOverdue=db.Column(db.Integer,default=0,nullable=False)
     # overdueDuration=db.Column(db.Integer,default=0,nullable=False)
     returned=db.Column(db.Integer,default=0,nullable=False)
-    returndate=db.Column(db.String())
+    # returndate=db.Column(db.String())
 
-    def __init__(self,id,bookissued,issuedto,issuedate,expectedreturn,returned,returndate=""):
+    def __init__(self,id,bookid,issuedto,issuedate,expectedreturn,returned):
         self.id=id
-        self.bookissued=bookissued
+        self.bookid=bookid
         self.issuedto=issuedto
         self.issuedate=issuedate
         self.expectedreturn=expectedreturn
         # self.isOverdue=isOverdue
         # self.overdueDuration=overdueDuration
         self.returned=returned
-        self.returndate=returndate
 
     def isOverdue(self):
         now = datetime.now()
@@ -172,29 +173,6 @@ def login():
 
     if user:
         if user.password == password:
-            booksissued=[]
-            for record in Issuerecord.query.filter_by(issuedto=username):
-                bookid=record.bookissued
-                book=Book.query.filter_by(bookid=bookid).first()
-                booksissued.append(
-                    {
-                        "booknumber":book.booknumber,
-                        "bookid":book.bookid,
-                        "isbn":book.isbn,
-                        "author":book.author,
-                        "published_date":book.published_date,
-                        "title":book.title,
-                        "image_url":book.image_url,
-                        "small_image_url":book.small_image_url,
-                        "no_of_copies":book.no_of_copies,
-                        "racknumber":book.racknumber,
-                        "issueid":record.id,
-                        "issuedate":record.issuedate,
-                        "expectedreturn":record.expectedreturn,
-                        "isOverdue":record.isOverdue,
-                        "overdueDuration":record.overdueDuration,
-                        "returned":record.returned
-                    })
             data = {
                 "isRegistered": True,     
                 "isPasswordCorrect": True,
@@ -203,8 +181,7 @@ def login():
                 "designation": user.designation,
                 "phone": user.phone,
                 "email": user.email,
-                "userName": user.username,
-                "booksissued":booksissued
+                "userName": user.username
             }
         else:
             data = {
@@ -222,7 +199,7 @@ def login():
 def getIssuedBooks(username):
     booksissued=[]
     for record in Issuerecord.query.filter_by(issuedto=username):
-        bookid=record.bookissued
+        bookid=record.bookid
         book=Book.query.filter_by(bookid=bookid).first()
         booksissued.append({
         "booknumber":book.booknumber,
@@ -237,8 +214,8 @@ def getIssuedBooks(username):
         "racknumber":book.racknumber,
         "issuedate":record.issuedate,
         "expectedreturn":record.expectedreturn,
-        "isOverdue":record.isOverdue,
-        "overdueDuration":record.overdueDuration,
+        # "isOverdue": record.isOverdue(),
+        # "overdueDuration": record.overdueDuration(),
         "returned":record.returned
     })
     return jsonify(booksissued)
@@ -295,14 +272,31 @@ def getBook(number):
 
 @app.route('/issue',methods=['GET','POST'])
 def issuebook():
-    bookid=request.json["bookid"]
+    bookId=request.json["bookid"]
     username=request.json["username"]
-    issueentry=[]
-    record=Issuerecord.query.filter(bookissued=bookid, issuedto=username, returned=0)
+
+    # matchingRecordsById = Issuerecord.query.filter_by(bookid=bookId).all()
+    # for record in matchingRecordsById:
+    #     if record.issuedto == username:
+
+    record = Issuerecord.query.filter_by(bookid=bookId, issuedto=username, returned=0).first()
+    print(type(record))
+
     if record:
         return jsonify({"alreadyissued": True})
-    bookissue=Book.query.filter_by(bookid=bookid).first()
+
+    bookissue=Book.query.filter_by(bookid=bookId).first()
     userissue=User.query.filter_by(username=username.strip()).first()
+
+    print(userissue.username)
+    if(userissue.designation=="UG Student" and userissue.booksissued>=2):
+        return jsonify({"issuelimit":True})
+    elif(userissue.designation=="PG Student" and userissue.booksissued>=4):
+        return jsonify({"issuelimit":True})
+    elif(userissue.designation=="Research Scholar" and userissue.booksissued>=6):
+        return jsonify({"issuelimit":True})
+    elif(userissue.booksissued>=10):
+        return jsonify({"issuelimit":True})
     if (bookissue.no_of_copies>0):
         date=datetime.now()
         data = {
@@ -319,8 +313,11 @@ def issuebook():
             issueDuration=180
         issueid=db.session.query(Issuerecord).count()
         bookissue.no_of_copies-=1
+        db.session.commit()
         issueEntry=Issuerecord(issueid+1,bookissue.bookid,userissue.username,date,date+timedelta(days=issueDuration),0)
         db.session.add(issueEntry)
+        db.session.commit()
+        userissue.booksissued+=1
         db.session.commit()
         return jsonify(data)
     data={
