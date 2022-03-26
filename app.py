@@ -80,20 +80,41 @@ class Issuerecord(db.Model):
     issuedto=db.Column(db.String(),db.ForeignKey('user.username'),nullable=False)
     issuedate=db.Column(db.String(),nullable=False)
     expectedreturn=db.Column(db.String(),nullable=False)
-    isOverdue=db.Column(db.Integer,default=0,nullable=False)
-    overdueDuration=db.Column(db.Integer,default=0,nullable=False)
+    # isOverdue=db.Column(db.Integer,default=0,nullable=False)
+    # overdueDuration=db.Column(db.Integer,default=0,nullable=False)
     returned=db.Column(db.Integer,default=0,nullable=False)
+    returndate=db.Column(db.String())
 
-    def __init__(self,id,bookissued,issuedto,issuedate,expectedreturn,isOverdue,overdueDuration,returned):
+    def __init__(self,id,bookissued,issuedto,issuedate,expectedreturn,returned,returndate=""):
         self.id=id
         self.bookissued=bookissued
         self.issuedto=issuedto
         self.issuedate=issuedate
         self.expectedreturn=expectedreturn
-        self.isOverdue=isOverdue
-        self.overdueDuration=overdueDuration
+        # self.isOverdue=isOverdue
+        # self.overdueDuration=overdueDuration
         self.returned=returned
+        self.returndate=returndate
 
+    def isOverdue(self):
+        now = datetime.now()
+        expectedreturn = datetime.strptime(self.expectedreturn, '%Y-%m-%d %H:%M:%S.%f')
+        return (expectedreturn<now)
+    
+    def overdueDuration(self):
+        if(self.isOverdue()):
+            now = datetime.now()
+            expectedreturn = datetime.strptime(self.expectedreturn, '%Y-%m-%d %H:%M:%S.%f')
+            return (now-expectedreturn).days+1
+        else:
+            return 0
+
+            # def printReminder(self):
+    #     if(self.isOverdue()):
+    #         overshoot = self.overdueDuration()
+    #         return jsonify({"isOverdue":1,"overdueDuration":overshoot})
+    #     else:
+    #         return jsonify({"isOverdue":0})
 
 @app.route('/about',methods=['GET','POST'])
 def about():
@@ -167,6 +188,7 @@ def login():
                         "small_image_url":book.small_image_url,
                         "no_of_copies":book.no_of_copies,
                         "racknumber":book.racknumber,
+                        "issueid":record.id,
                         "issuedate":record.issuedate,
                         "expectedreturn":record.expectedreturn,
                         "isOverdue":record.isOverdue,
@@ -276,6 +298,9 @@ def issuebook():
     bookid=request.json["bookid"]
     username=request.json["username"]
     issueentry=[]
+    record=Issuerecord.query.filter(bookissued=bookid, issuedto=username, returned=0)
+    if record:
+        return jsonify({"alreadyissued": True})
     bookissue=Book.query.filter_by(bookid=bookid).first()
     userissue=User.query.filter_by(username=username.strip()).first()
     if (bookissue.no_of_copies>0):
@@ -294,7 +319,7 @@ def issuebook():
             issueDuration=180
         issueid=db.session.query(Issuerecord).count()
         bookissue.no_of_copies-=1
-        issueEntry=Issuerecord(issueid+1,bookissue.bookid,userissue.username,date,date+timedelta(days=issueDuration),0,0,0)
+        issueEntry=Issuerecord(issueid+1,bookissue.bookid,userissue.username,date,date+timedelta(days=issueDuration),0)
         db.session.add(issueEntry)
         db.session.commit()
         return jsonify(data)
@@ -303,7 +328,10 @@ def issuebook():
     }
     return jsonify(data)
 
-
+@app.route('/return',methods=['GET','POST'])
+def returnBook():
+    bookid=request.json["bookid"]
+    username=request.json["username"]
 
 if __name__=='__main__':
     app.run(debug=True)
