@@ -102,15 +102,15 @@ class Issuerecord(db.Model):
         now = datetime.now()
         expectedreturn = datetime.strptime(self.expectedreturn, '%Y-%m-%d %H:%M:%S.%f')
         issuedate = datetime.strptime(self.issuedate, '%Y-%m-%d %H:%M:%S.%f')
-        return ((expectedreturn-issuedate).days<int((now-issuedate).total_seconds()/60))
+        return ((expectedreturn-issuedate).days<int((now-issuedate).total_seconds()))
     
     def overdueDuration(self):
         if(self.isOverdue()):
             now = datetime.now()
             expectedreturn = datetime.strptime(self.expectedreturn, '%Y-%m-%d %H:%M:%S.%f')
             issuedate = datetime.strptime(self.issuedate, '%Y-%m-%d %H:%M:%S.%f')
-            expectedreturn_in_minutes=(expectedreturn-issuedate).days
-            return int(((now-(issuedate+timedelta(minutes=expectedreturn_in_minutes))).total_seconds())/60)
+            expectedreturn_in_seconds=(expectedreturn-issuedate).days
+            return int(((now-(issuedate+timedelta(seconds=expectedreturn_in_seconds))).total_seconds()))
         else:
             return 0
 
@@ -144,7 +144,7 @@ def register():
     password=request.json['password']
     designation=request.json['designation']
     print(designation)
-    record = User(name,roll,email,phone,username,password,designation)
+    record = User(name,roll,email,phone,username,password,designation,booksissued=0)
 
     roll_exists = User.query.filter_by(roll=roll.strip()).first()
     email_exists = User.query.filter_by(email=email.strip()).first()
@@ -169,7 +169,7 @@ def register():
         data = {
             "accepted": True,
             "rollExists": False,
-            "emailExists": False,
+            "emailExists": Fals,
             "phoneExists": False,
             "usernameExists": False,    
         }
@@ -234,7 +234,7 @@ def login():
 @app.route('/profile/<string:username>',methods=['GET'])
 def getIssuedBooks(username):
     booksissued=[]
-    for record in Issuerecord.query.filter_by(issuedto=username,returned=0):
+    for record in Issuerecord.query.filter_by(issuedto=username):
         bookid=record.bookid
         book=Book.query.filter_by(bookid=bookid).first()
         booksissued.append({
@@ -253,7 +253,8 @@ def getIssuedBooks(username):
         "expectedreturn":record.expectedreturn,
         "isOverdue":record.isOverdue(),
         "overdueDuration":record.overdueDuration(),
-        "returned":record.returned
+        "returned":record.returned,
+        "returndate":record.returndate
     })
     return jsonify(booksissued)
 
@@ -309,7 +310,7 @@ def getBook(number):
 
 @app.route('/issue',methods=['GET','POST'])
 def issuebook():
-    bookid=request.json["booknumber"]
+    bookid=request.json["bookid"]
     username=request.json["username"]
     issueentry=[]
     record=Issuerecord.query.filter_by(bookid=bookid, issuedto=username, returned=0).first()
@@ -325,12 +326,9 @@ def issuebook():
         return jsonify({"issuelimit":True})
     elif(userissue.booksissued>=10):
         return jsonify({"issuelimit":True})
-
     if (bookissue.no_of_copies>0):
         date=datetime.now()
-        data = {
-            "isIssued": True,
-        }
+        
         issueDuration=0
         if(userissue.designation=="UG Student"):
             issueDuration=30
@@ -346,6 +344,11 @@ def issuebook():
         issueEntry=Issuerecord(issueid+1,bookissue.bookid,userissue.username,date,date+timedelta(days=issueDuration),0)
         db.session.add(issueEntry)
         db.session.commit()
+        db.session.flush()
+        data = {
+            "isIssued": True,
+            "id": issueEntry.id
+        }
         userissue.booksissued+=1
         db.session.commit()
         return jsonify(data)
@@ -356,6 +359,7 @@ def issuebook():
 
 @app.route('/return/<int:id>')
 def returnBook(id):
+    print(id)
     record=Issuerecord.query.filter_by(id=id).first()
     record.returned=1
     db.session.commit()
