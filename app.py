@@ -85,7 +85,7 @@ class Issuerecord(db.Model):
     # isOverdue=db.Column(db.Integer,default=0,nullable=False)
     # overdueDuration=db.Column(db.Integer,default=0,nullable=False)
     returned=db.Column(db.Integer,default=0,nullable=False)
-    returndate=db.Column(db.String())
+    # returndate=db.Column(db.String())
 
     def __init__(self,id,bookid,issuedto,issuedate,expectedreturn,returned,returndate=""):
         self.id=id
@@ -96,7 +96,6 @@ class Issuerecord(db.Model):
         # self.isOverdue=isOverdue
         # self.overdueDuration=overdueDuration
         self.returned=returned
-        self.returndate=returndate
 
     def isOverdue(self):
         now = datetime.now()
@@ -169,7 +168,7 @@ def register():
         data = {
             "accepted": True,
             "rollExists": False,
-            "emailExists": Fals,
+            "emailExists": False,
             "phoneExists": False,
             "usernameExists": False,    
         }
@@ -310,13 +309,14 @@ def getBook(number):
 
 @app.route('/issue',methods=['GET','POST'])
 def issuebook():
-    bookid=request.json["bookid"]
+    bookId=request.json["bookid"]
     username=request.json["username"]
     issueentry=[]
-    record=Issuerecord.query.filter_by(bookid=bookid, issuedto=username, returned=0).first()
+    record=Issuerecord.query.filter_by(bookid=bookId, issuedto=username, returned=0).first()
     if record:
         return jsonify({"alreadyissued": True})
-    bookissue=Book.query.filter_by(bookid=bookid).first()
+
+    bookissue=Book.query.filter_by(bookid=bookId).first()
     userissue=User.query.filter_by(username=username.strip()).first()
     if(userissue.designation=="UG Student" and userissue.booksissued>=2):
         return jsonify({"issuelimit":True})
@@ -359,7 +359,6 @@ def issuebook():
 
 @app.route('/return/<int:id>')
 def returnBook(id):
-    print(id)
     record=Issuerecord.query.filter_by(id=id).first()
     record.returned=1
     db.session.commit()
