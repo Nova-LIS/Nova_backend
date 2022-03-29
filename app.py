@@ -1,6 +1,8 @@
 from flask import Flask,render_template,request,jsonify
 from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy import desc
 from datetime import datetime,timedelta
+import random
 
 from flask_cors import CORS
 
@@ -47,7 +49,7 @@ class User(db.Model):
 class Book(db.Model):
     booknumber=db.Column(db.Integer)
     bookid=db.Column(db.Integer,primary_key=True)
-    isbn=db.Column(db.String(),nullable=False)
+    isbn=db.Column(db.Integer,nullable=False)
     author=db.Column(db.String(80),nullable=False)
     published_date=db.Column(db.String(),nullable=False)
     title=db.Column(db.String(100),nullable=False,unique=True)
@@ -59,22 +61,24 @@ class Book(db.Model):
     small_image_url=db.Column(db.String(),nullable=False)
     no_of_copies=db.Column(db.Integer,nullable=False)
     racknumber=db.Column(db.Integer,nullable=False)
+    isDeleted=db.Column(db.Integer)
 
     # def __repr__(self):
     #     return f"User('{self.bo}','{self.isbn}','{self.author}','{self.copies}'," \
     #            f"'{self.last_issued}')"
 
-    def __init__(self,booknumber,bookid,isbn,author,published_date,title,image_url,small_image_url,no_of_copies,racknumber):
-        booknumber=db.Column(db.Integer)
-        bookid=db.Column(db.Integer,primary_key=True)
-        isbn=db.Column(db.String(),nullable=False)
-        author=db.Column(db.String(80),nullable=False)
-        published_date=db.Column(db.String(),nullable=False)
-        title=db.Column(db.String(100),nullable=False,unique=True)
-        image_url=db.Column(db.String(),nullable=False)
-        small_image_url=db.Column(db.String(),nullable=False)
-        no_of_copies=db.Column(db.Integer,nullable=False)
-        racknumber=db.Column(db.Integer,nullable=False)
+    def __init__(self,booknumber,bookid,isbn,author,published_date,title,image_url,small_image_url,no_of_copies,racknumber,isDeleted=0):
+        self.booknumber=booknumber
+        self.bookid=bookid
+        self.isbn=isbn
+        self.author=author
+        self.published_date=published_date
+        self.title=title
+        self.image_url=image_url
+        self.small_image_url=small_image_url
+        self.no_of_copies=no_of_copies
+        self.racknumber=racknumber
+        self.isDeleted=isDeleted
 
 class Issuerecord(db.Model):
     id=db.Column(db.Integer,primary_key=True)
@@ -85,9 +89,10 @@ class Issuerecord(db.Model):
     # isOverdue=db.Column(db.Integer,default=0,nullable=False)
     # overdueDuration=db.Column(db.Integer,default=0,nullable=False)
     returned=db.Column(db.Integer,default=0,nullable=False)
-    # returndate=db.Column(db.String())
+    returndate=db.Column(db.String())
+    isPrinted=db.Column(db.Integer)
 
-    def __init__(self,id,bookid,issuedto,issuedate,expectedreturn,returned,returndate=""):
+    def __init__(self,id,bookid,issuedto,issuedate,expectedreturn,returned,returndate="",isPrinted=0):
         self.id=id
         self.bookid=bookid
         self.issuedto=issuedto
@@ -96,6 +101,8 @@ class Issuerecord(db.Model):
         # self.isOverdue=isOverdue
         # self.overdueDuration=overdueDuration
         self.returned=returned
+        self.returndate=returndate
+        self.isPrinted=isPrinted
 
     def isOverdue(self):
         now = datetime.now()
@@ -236,26 +243,63 @@ def getIssuedBooks(username):
     for record in Issuerecord.query.filter_by(issuedto=username):
         bookid=record.bookid
         book=Book.query.filter_by(bookid=bookid).first()
+        if book:
+            booksissued.append({
+            "booknumber":book.booknumber,
+            "bookid":book.bookid,
+            "isbn":book.isbn,
+            "author":book.author,
+            "published_date":book.published_date,
+            "title":book.title,
+            "image_url":book.image_url,
+            "small_image_url":book.small_image_url,
+            "no_of_copies":book.no_of_copies,
+            "racknumber":book.racknumber,
+            "id":record.id,
+            "issuedate":record.issuedate,
+            "expectedreturn":record.expectedreturn,
+            "isOverdue":record.isOverdue(),
+            "overdueDuration":record.overdueDuration(),
+            "returned":record.returned,
+            "returndate":record.returndate,
+            "isPrinted": record.isPrinted,
+            "isDeleted":book.isDeleted
+        })
+    return jsonify(booksissued)
+
+@app.route('/unreturnedBooks',methods=['GET','POST'])
+
+def unreturnedBooks():
+    booksissued=[]
+    for record in Issuerecord.query.filter_by(returned=0):
+        bookid=record.bookid
+        book=Book.query.filter_by(bookid=bookid).first()
         booksissued.append({
-        "booknumber":book.booknumber,
-        "bookid":book.bookid,
-        "isbn":book.isbn,
-        "author":book.author,
-        "published_date":book.published_date,
         "title":book.title,
         "image_url":book.image_url,
         "small_image_url":book.small_image_url,
-        "no_of_copies":book.no_of_copies,
-        "racknumber":book.racknumber,
         "id":record.id,
         "issuedate":record.issuedate,
         "expectedreturn":record.expectedreturn,
         "isOverdue":record.isOverdue(),
-        "overdueDuration":record.overdueDuration(),
-        "returned":record.returned,
-        "returndate":record.returndate
+        "username": record.issuedto,
+        "isPrinted": record.isPrinted,
+        "isDeleted": record.isDeleted
     })
+
     return jsonify(booksissued)
+
+@app.route('/printReminder/<int:issueid>',methods=['GET','POST'])
+def printReminder(issueid):
+    record=Issuerecord.query.filter_by(id=issueid).first()
+    print(record)
+    #return jsonify({})
+    if record.isPrinted == 1:
+        return jsonify({"alreadySent": True})
+    else:
+        record.isPrinted = 1
+        db.session.commit()
+        return jsonify({"alreadySent": False})
 
 
 @app.route('/browse',methods=['GET','POST'])
@@ -275,7 +319,8 @@ def browse():
             "image_url":book.image_url,
             "small_image_url":book.small_image_url,
             "no_of_copies":book.no_of_copies,
-            "racknumber":book.racknumber
+            "racknumber":book.racknumber,
+            "isDeleted":book.isDeleted
         })
     if flag==0:
         data={
@@ -305,6 +350,36 @@ def getBook(number):
         "racknumber":book.racknumber
     }
     return jsonify(serialBook)
+
+@app.route('/getUsers',methods=["GET"])
+def getUsers():
+    users=[]
+    flag=0
+    for user in User.query.all():
+        flag=1
+        users.append({
+            "name":user.name,
+            "username":user.username,
+            "designation":user.designation
+        })
+    if(flag==1):
+        data={
+            "usersFound":True,
+            "users":users
+        } 
+        return jsonify(data)
+    else:
+        data={
+            "usersFound":False
+        }
+        return jsonify(data)
+
+@app.route("/deleteUser/<string:username>", methods=["DELETE"])
+def guide_delete(username):
+    user=User.query.filter_by(username=username).first()
+    db.session.delete(user)
+    db.session.commit()
+    return jsonify({"userDeleted":True})
 
 
 @app.route('/issue',methods=['GET','POST'])
@@ -379,6 +454,90 @@ def returnBook(id):
     else:
         return jsonify({"isOverdue":True,"penalty":penalty})
 
+@app.route('/registerBook', methods=['GET','POST'])
+def registerBook():
+    booknumber=(Book.query.order_by(Book.booknumber.desc()).first()).booknumber+1
+    bookid=(Book.query.order_by(Book.bookid.desc()).first()).bookid+1
+    # print(bookid)
+    # print(booknumber)
+    isbn=request.json["isbn"]
+    author=request.json["author"]
+    published_date=request.json["published_date"]
+    title=request.json["title"]
+    image_url=request.json["image_url"]
+    small_image_url=request.json["small_image_url"]
+    no_of_copies=request.json["no_of_copies"]
+    racknumber=random.randint(1,200)
+    book=Book(booknumber,bookid,isbn,author,published_date,title,image_url,small_image_url,no_of_copies,racknumber)
+    # print(book.bookid)
+    isbn_exists = Book.query.filter_by(isbn=isbn).first()
+    bookid_exists = Book.query.filter_by(bookid=bookid).first()
+    title_exists = Book.query.filter_by(title=title.strip()).first()
+
+    exists = isbn_exists or bookid_exists or title_exists
+    print(exists)
+    if exists:
+        data = {
+            "accepted": False,
+            "isbnExists": True if isbn_exists else False,
+            "bookidExists": True if bookid_exists else False,
+            "titleExists": True if title_exists else False ,    
+        }
+        return jsonify(data)
+
+    else:
+        db.session.add(book)
+        db.session.commit()
+        data = {
+            "accepted": True,
+            "isbnExists": False,
+            "bookidExists": False,
+            "titleExists": False,  
+        }
+        return jsonify(data)
+
+@app.route("/deleteBook/<int:bookid>", methods=["DELETE"])
+def bookdelete(bookid):
+    book=Book.query.filter_by(bookid=bookid).first()
+    print(book.title)
+    book.isDeleted=1
+    db.session.commit()
+    return jsonify({"bookDeleted":True})
+
+
+@app.route('/getExpiredBooks',methods=["GET"])
+def expiredBooks():
+    books=[]
+    flag=0
+    date=datetime.now()
+    records=db.session.query(Issuerecord.bookid).distinct().all()
+    for record in records:
+        bookid=record.bookid
+        flag=1
+        issue=Issuerecord.query.filter_by(bookid=bookid).order_by(desc(Issuerecord.issuedate)).first()
+        book=Book.query.filter_by(bookid=bookid).first()
+        if ((int((date-datetime.strptime(issue.issuedate,'%Y-%m-%d %H:%M:%S.%f')).total_seconds())>5*365) and book):
+            books.append({
+                "bookid":book.bookid,
+                "booknumber":book.booknumber,
+                "title":book.title,
+                "author":book.author,
+                "isbn":book.isbn,
+                "published_date":book.published_date,
+                "image_url":book.image_url,
+                "small_image_url":book.small_image_url,
+                "no_of_copies":book.no_of_copies,
+                "racknumber":book.racknumber,
+                "isDeleted":book.isDeleted
+            })
+    if(flag==1):
+        data={
+            "booksFound":True,
+            "booksExpired":books
+        }
+        return jsonify(data)
+    else:
+        return jsonify({"booksFound":False})
 
 
 if __name__=='__main__':
