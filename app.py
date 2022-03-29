@@ -40,6 +40,7 @@ class User(db.Model):
     def serialize(self):
         return {"name": self.name,
                 "roll": self.roll,
+
                 "email": self.email,
                 "phone":self.phone,
                 "username":self.username,
@@ -92,6 +93,7 @@ class Issuerecord(db.Model):
     returndate=db.Column(db.String())
     isPrinted=db.Column(db.Integer)
 
+
     def __init__(self,id,bookid,issuedto,issuedate,expectedreturn,returned,returndate="",isPrinted=0):
         self.id=id
         self.bookid=bookid
@@ -134,6 +136,20 @@ class Issuerecord(db.Model):
     #         return jsonify({"isOverdue":1,"overdueDuration":overshoot})
     #     else:
     #         return jsonify({"isOverdue":0})
+
+class Reserverecord(db.Model):
+    id=db.Column(db.Integer,primary_key=True)
+    bookid=db.Column(db.Integer,nullable=False)
+    username=db.Column(db.String(80),nullable=False)
+    returndate=db.Column(db.String(),nullable=False,default="NULL")
+    isavailable=db.Column(db.Integer,default=0)
+
+    def __init__(self,id,bookid,username,returndate="NULL",isavailable=0):
+        self.id=id
+        self.bookid=bookid
+        self.username=username
+        self.returndate=returndate
+        self.isavailable=isavailable
 
 @app.route('/about',methods=['GET','POST'])
 def about():
@@ -180,6 +196,19 @@ def register():
             "usernameExists": False,    
         }
         return jsonify(data)
+
+@app.route('/reserve',methods=["GET","POST"])
+def reserveBook():
+    bookid=request.json["bookid"]
+    username=request.json["username"]
+    id=db.session.query(Reserverecord).count()
+    record=Reserverecord.query.filter_by(bookid=bookid,username=username).first()
+    if(record):
+        return jsonify({"alreadyReserved":True})
+    reserveEntry=Reserverecord(id+1,bookid,username)
+    db.session.add(reserveEntry)
+    db.session.commit()
+    return jsonify({"reserved":True})
 
 
 @app.route('/login',methods=['GET','POST'])
@@ -263,9 +292,35 @@ def getIssuedBooks(username):
             "returned":record.returned,
             "returndate":record.returndate,
             "isPrinted": record.isPrinted,
-            "isDeleted":book.isDeleted
+            "isDeleted":book.isDeleted,
         })
-    return jsonify(booksissued)
+
+    booksreserved=[]
+    now = datetime.now()
+    for record in Reserverecord.query.filter_by(username=username):
+        if(record.isavailable==1 and (int((now-datetime.strptime(record.returndate,'%Y-%m-%d %H:%M:%S.%f')).total_seconds())/60)*(7/5)>7):
+            delrecord=record
+            db.session.delete(delrecord)
+            db.session.commit()
+        else:
+            book = Book.query.filter_by(bookid=record.bookid).first()
+            booksreserved.append({
+                "booknumber":book.booknumber,
+                "bookid":book.bookid,
+                "isbn":book.isbn,
+                "author":book.author,
+                "published_date":book.published_date,
+                "title":book.title,
+                "image_url":book.image_url,
+                "small_image_url":book.small_image_url,
+                "no_of_copies":book.no_of_copies,
+                "racknumber":book.racknumber,
+                "returndate":record.returndate,
+                "username": username,
+                "isAvailable": record.isavailable
+            })
+    return jsonify({"booksissued": booksissued, "booksreserved": booksreserved})
+
 
 @app.route('/unreturnedBooks',methods=['GET','POST'])
 
@@ -284,7 +339,7 @@ def unreturnedBooks():
         "isOverdue":record.isOverdue(),
         "username": record.issuedto,
         "isPrinted": record.isPrinted,
-        "isDeleted": record.isDeleted
+        "isDeleted": book.isDeleted
     })
 
     return jsonify(booksissued)
@@ -401,18 +456,18 @@ def issuebook():
         return jsonify({"issuelimit":True})
     elif(userissue.booksissued>=10):
         return jsonify({"issuelimit":True})
+    issueDuration=0
+    if(userissue.designation=="UG Student"):
+        issueDuration=30
+    elif(userissue.designation=="PG Student"):
+        issueDuration=60
+    elif(userissue.designation=="Research Scholar"):
+        issueDuration=90
+    else:
+        issueDuration=180
+    date=datetime.now()
     if (bookissue.no_of_copies>0):
-        date=datetime.now()
-        
-        issueDuration=0
-        if(userissue.designation=="UG Student"):
-            issueDuration=30
-        elif(userissue.designation=="PG Student"):
-            issueDuration=60
-        elif(userissue.designation=="Research Scholar"):
-            issueDuration=90
-        else:
-            issueDuration=180
+    
         issueid=db.session.query(Issuerecord).count()
         bookissue.no_of_copies-=1
         db.session.commit()
@@ -427,10 +482,52 @@ def issuebook():
         userissue.booksissued+=1
         db.session.commit()
         return jsonify(data)
-    data={
-        "isIssued":False,
-    }
-    return jsonify(data)
+    else:
+        flag=0
+        for record in Reserverecord.query.filter_by(bookid=bookId):
+            flag=1
+            if(record.isavailable==1):
+                if(int((date-datetime.strptime(record.returndate,'%Y-%m-%d %H:%M:%S.%f')).total_seconds()/60)*(7/5)>7):
+                    delrecord=record
+                    db.session.delete(delrecord)
+                    db.session.commit()
+                else:
+                    break
+        record=Reserverecord.query.filter_by(bookid=bookId,username=username).first()
+        if(flag==1):
+            record2=db.session.query(Reserverecord).filter(Reserverecord.username!=username).filter(Reserverecord.bookid==bookId).first()
+        if((record and record.isavailable==1)or(flag==1 and record2 is None)):
+            issueid=db.session.query(Issuerecord).count()
+            db.session.commit()
+            issueEntry=Issuerecord(issueid+1,bookissue.bookid,userissue.username,date,date+timedelta(days=issueDuration),0)
+            db.session.add(issueEntry)
+            db.session.commit()
+            db.session.flush()
+            data = {
+                "isIssued": True,
+                "id": issueEntry.id
+            }
+            userissue.booksissued+=1
+            db.session.commit()
+            if(record):
+                db.session.delete(record)
+                db.session.commit()
+                for entry in Reserverecord.query.filter_by(bookid=bookId):
+                    entry.isavailable=0
+                    db.session.commit()
+                    entry.returndate="NULL"
+                    db.session.commit()
+            return jsonify(data)
+        elif(record):
+            return jsonify({
+                "isIssued":False, 
+                "canReserve":False
+            })
+        else:
+            return jsonify({
+                "isIssued":False, 
+                "canReserve":True
+            })
 
 @app.route('/return/<int:id>')
 def returnBook(id):
@@ -440,14 +537,25 @@ def returnBook(id):
     bookid=record.bookid
     username=record.issuedto
     book=Book.query.filter_by(bookid=bookid).first()
-    book.no_of_copies+=1
-    db.session.commit()
     user=User.query.filter_by(username=username).first()
     user.booksissued-=1
     db.session.commit()
     date=datetime.now()
     record.returndate=date
     db.session.commit()
+    
+    flag=0
+    for entry in Reserverecord.query.filter_by(bookid=bookid):
+        flag=1
+        entry.returndate=date
+        db.session.commit()
+        entry.isavailable=1
+        db.session.commit()
+    if(flag==0):
+        book.no_of_copies+=1
+        db.session.commit()
+
+
     penalty=record.penalty()
     if(penalty==0):
         return jsonify({"returned":True,"isOverdue":False})
