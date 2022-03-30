@@ -520,12 +520,12 @@ def issuebook():
             return jsonify(data)
         elif(record):
             return jsonify({
-                "isIssued":False, 
+                "isIssuedByAnother":False, 
                 "canReserve":False
             })
         else:
             return jsonify({
-                "isIssued":False, 
+                "isIssuedByAnother":False, 
                 "canReserve":True
             })
 
